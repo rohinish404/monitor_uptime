@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime, timezone
@@ -234,39 +234,39 @@ async def send_discord_notification(website: Website, status: WebsiteStatus, db:
             f"Downtime Duration: {downtime_duration}"
         )
 
-        failed_webhooks = []
-        async with httpx.AsyncClient() as client:
-            for webhook in webhooks:
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        response = await client.post(
-                            str(webhook.url),
-                            json={"content": message},
-                            timeout=5.0
-                        )
-                        response.raise_for_status()
-                        logger.info(f"Successfully sent notification to webhook {webhook.name or webhook.url}")
-                        break
-                    except httpx.TimeoutException:
-                        retries += 1
-                        if retries == max_retries:
-                            error_msg = f"Timeout sending notification to webhook {webhook.name or webhook.url}"
-                            logger.error(error_msg)
-                            failed_webhooks.append((webhook, error_msg))
-                    except httpx.HTTPStatusError as e:
-                        error_msg = f"HTTP {e.response.status_code} error sending notification to webhook {webhook.name or webhook.url}"
+    failed_webhooks = []
+    async with httpx.AsyncClient() as client:
+        for webhook in webhooks:
+            retries = 0
+            while retries < max_retries:
+                try:
+                    response = await client.post(
+                        str(webhook.url),
+                        json={"content": message},
+                        timeout=5.0
+                    )
+                    response.raise_for_status()
+                    logger.info(f"Successfully sent notification to webhook {webhook.name or webhook.url}")
+                    break
+                except httpx.TimeoutException:
+                    retries += 1
+                    if retries == max_retries:
+                        error_msg = f"Timeout sending notification to webhook {webhook.name or webhook.url}"
                         logger.error(error_msg)
                         failed_webhooks.append((webhook, error_msg))
-                        break
-                    except Exception as e:
-                        error_msg = f"Unexpected error sending notification to webhook {webhook.name or webhook.url}: {str(e)}"
-                        logger.error(error_msg)
-                        failed_webhooks.append((webhook, error_msg))
-                        break
+                except httpx.HTTPStatusError as e:
+                    error_msg = f"HTTP {e.response.status_code} error sending notification to webhook {webhook.name or webhook.url}"
+                    logger.error(error_msg)
+                    failed_webhooks.append((webhook, error_msg))
+                    break
+                except Exception as e:
+                    error_msg = f"Unexpected error sending notification to webhook {webhook.name or webhook.url}: {str(e)}"
+                    logger.error(error_msg)
+                    failed_webhooks.append((webhook, error_msg))
+                    break
 
-        if failed_webhooks:
-            raise WebhookDeliveryError(f"Failed to deliver to {len(failed_webhooks)} webhooks: {', '.join(msg for _, msg in failed_webhooks)}")
+    if failed_webhooks:
+        raise WebhookDeliveryError(f"Failed to deliver to {len(failed_webhooks)} webhooks: {', '.join(msg for _, msg in failed_webhooks)}")
 
 async def monitor_websites():
     while True:
