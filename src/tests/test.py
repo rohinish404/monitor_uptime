@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-from main import (
+from src.main import (
     Base, Website, StatusCheck, WebhookConfig, WebsiteStatus,
     check_website, send_discord_notification, app, validate_url,
     URLValidationError, WebhookDeliveryError

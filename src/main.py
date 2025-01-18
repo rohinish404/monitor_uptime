@@ -2,98 +2,32 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from datetime import datetime, timezone
 import httpx
-import enum
 import asyncio
 from typing import List
 from contextlib import asynccontextmanager
 import logging 
 from urllib.parse import urlparse
 from sqlalchemy.exc import IntegrityError
+from schemas import WebhookCreate, WebsiteCreate, WebsiteStatus, StatusCheckResponse
+from database import get_db, SessionLocal, init_db
+from models import Website, StatusCheck, WebhookConfig
+from utils import URLValidationError, WebhookDeliveryError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./website_monitor.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-class URLValidationError(Exception):
-    """Raised when a URL is invalid or malformed"""
-    pass
-
-class WebhookDeliveryError(Exception):
-    """Raised when a Discord webhook notification fails"""
-    pass
-
-class NetworkTimeoutError(Exception):
-    """Raised when a website check times out"""
-    pass
-
-
-class WebsiteStatus(str, enum.Enum):
-    UP = "up"
-    DOWN = "down"
-    UNKNOWN = "unknown"
-
-class Website(Base):
-    __tablename__ = "websites"
-    
-    id = Column(Integer, primary_key=True)
-    url = Column(String, unique=True, index=True)
-    name = Column(String, nullable=True)
-    check_interval_seconds = Column(Integer, default=300)
-    current_status = Column(String, default=WebsiteStatus.UNKNOWN)
-    last_checked = Column(DateTime(timezone=True), nullable=True)
-    last_status_change = Column(DateTime(timezone=True), nullable=True)
-
-class StatusCheck(Base):
-    __tablename__ = "status_checks"
-    
-    id = Column(Integer, primary_key=True)
-    website_id = Column(Integer)
-    timestamp = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    response_time_ms = Column(Float, nullable=True)
-    status = Column(String)
-    error_message = Column(String, nullable=True)
-
-class WebhookConfig(Base):
-    __tablename__ = "webhook_configs"
-    
-    id = Column(Integer, primary_key=True)
-    url = Column(String, unique=True)
-    name = Column(String, nullable=True)
-
-class WebsiteCreate(BaseModel):
-    url: HttpUrl
-    name: str | None = None
-    check_interval_seconds: int = 300
-    expected_status_code: int = 200
-
-class WebhookCreate(BaseModel):
-    url: HttpUrl
-    name: str | None = None
-
-Base.metadata.create_all(bind=engine)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     asyncio.create_task(monitor_websites())
     yield
 
 app = FastAPI(lifespan=lifespan)
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def validate_url(url: str) -> bool:
     """
@@ -330,16 +264,6 @@ async def remove_site(website_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
-class StatusCheckResponse(BaseModel):
-    id: int
-    website_id: int
-    timestamp: datetime
-    response_time_ms: float | None
-    status: str
-    error_message: str | None
-
-    class Config:
-        from_attributes = True
 
 @app.get("/sites/{website_id}/history", response_model=List[StatusCheckResponse])
 async def get_site_history(
