@@ -27,8 +27,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
-
 def validate_url(url: str) -> bool:
     """
     Validate URL format and scheme
