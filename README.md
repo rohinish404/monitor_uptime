@@ -2,6 +2,10 @@
 
 A simple service that monitors website availability and sends notifications through Discord webhooks when a site goes down or recovers.
 
+## Demo
+
+https://github.com/user-attachments/assets/2033802f-c5ef-478f-8abc-f0811290442a
+
 
 ## Features
 
@@ -35,10 +39,12 @@ Go to the project directory
   cd monitor_uptime
 ```
 
-Install dependencies using [uv](https://docs.astral.sh/uv/).
+Create venv and Install dependencies using [uv](https://docs.astral.sh/uv/).
 
 ```bash
-  uv install
+  uv venv
+  source .venv/bin/activate
+  uv sync
 ```
 
 Start the server via uvicorn.
@@ -254,5 +260,38 @@ cd src
 pytest tests/test.py
 ```
 
+## Architecture Decisions
 
+### Asynchronous Monitoring:
+
+- Uses Python's asyncio and httpx for non-blocking website checks
+- The monitor_websites() function runs as a background task, continuously checking sites based on their intervals
+- This approach prevents head-of-line blocking where a slow website check would delay others
+- Efficient resource utilization since the system doesn't spawn new threads for each check
+
+### Error Handling & Resilience:
+
+- Comprehensive error handling for network issues, timeouts, and validation errors
+- Retry mechanism for webhook notifications
+- Transaction management to maintain data consistency
+- Logging system for operational monitoring
+
+### Data Storage Design
+
+### SQLAlchemy ORM Approach:
+
+- Uses SQLAlchemy for database abstraction and ORM capabilities
+- Session management through dependency injection
+- Supports multiple database backends without code changes
+
+### Data Model Design:
+
+- Separates concerns into distinct models (Website, StatusCheck, WebhookConfig)
+- Stores temporal data (last_checked, last_status_change) for monitoring and reporting
+
+### Storage Efficiency:
+
+- Only stores status changes and periodic checks rather than continuous monitoring data
+- Uses pagination for history retrieval to manage large datasets
+- Maintains historical data for analysis while keeping current status readily available
 
