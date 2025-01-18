@@ -44,6 +44,7 @@ Install dependencies using [uv](https://docs.astral.sh/uv/).
 Start the server via uvicorn.
 
 ```bash
+  cd src
   uvicorn main:app --reload
 ```
 
@@ -62,7 +63,7 @@ Start the server via uvicorn.
 
 ## Configuration
 
-The service uses SQLAlchemy for database operations. Make sure to configure your database connection in `database.py`.
+The service uses SQLAlchemy for database operations. Make sure to configure your database connection in `database.py`. For now instead of `.env`, the database url is already present in the same file.
 
 Environment variables (create a `.env` file):
 ```
@@ -71,9 +72,9 @@ DATABASE_URL=sqlite:///./monitor.db  # Example for SQLite
 
 ## Running the Service
 
-1. Start the server:
+1. Start the server (Make sure you're inside the src folder):
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --reload
 ```
 
 2. Access the API documentation:
@@ -223,18 +224,35 @@ The service includes robust error handling for:
 - Database connection issues
 - Duplicate website entries
 
-## Contributing
+## Testing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The application includes comprehensive test coverage using pytest for both synchronous and asynchronous operations. Tests are configured to use SQLite as the test database.
 
-## License
+### Test Coverage
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **Database Operations**: Fixtures provide clean database sessions and test entities for each test
+- **Website Monitoring**:
+  - Successful status checks
+  - Failed connection handling
+  - Timeout scenario handling
+- **Discord Notifications**:
+  - Successful webhook delivery
+  - Failed notification handling
+- **URL Validation**:
+  - Valid HTTP/HTTPS URLs
+  - Invalid URL format detection
+- **API Endpoints**:
+  - Site creation
+  - Site listing
+  - History retrieval
+  - Site deletion
 
+### Running Tests
+
+```bash
+cd src
+pytest tests/test.py
+```
 
 
 
